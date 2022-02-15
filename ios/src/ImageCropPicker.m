@@ -216,7 +216,11 @@ RCT_EXPORT_METHOD(openCamera:(NSDictionary *)options
             exif = [info objectForKey:UIImagePickerControllerMediaMetadata];
         }
         
-        [self processSingleImagePick:chosenImage withExif:exif withViewController:picker withSourceURL:self.croppingFile[@"sourceURL"] withLocalIdentifier:self.croppingFile[@"localIdentifier"] withFilename:self.croppingFile[@"filename"] withCreationDate:self.croppingFile[@"creationDate"] withModificationDate:self.croppingFile[@"modificationDate"]];
+        [self processSingleImagePick:chosenImage withExif:exif withViewController:picker withSourceURL:self.croppingFile[@"sourceURL"] withLocalIdentifier:self.croppingFile[@"localIdentifier"]
+            withThumbURL:self.croppingFile[@"thumbURL"]
+            withFilename:self.croppingFile[@"filename"]
+            withCreationDate:self.croppingFile[@"creationDate"]
+            withModificationDate:self.croppingFile[@"modificationDate"]];
     }
 }
 
@@ -481,10 +485,12 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     }];
 }
 
-- (NSDictionary*) createAttachmentResponse:(NSString*)filePath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withDuration:(NSNumber*)duration withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (NSDictionary*) createAttachmentResponse:(NSString*)filePath createAttachmentResponse:(NSString*)thumbPath createAttachmentResponse:(NSString*)thumbPath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withDuration:(NSNumber*)duration withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withThumbURL:(NSString*)thumbURL {
     return @{
         @"path": (filePath && ![filePath isEqualToString:(@"")]) ? filePath : [NSNull null],
+        @"thumbPath": (thumbPath && ![thumbPath isEqualToString:(@"")]) ? thumbPath : [NSNull null],
         @"sourceURL": (sourceURL) ? sourceURL : [NSNull null],
+        @"thumbURL": (thumbURL) ? [sourceURL stringByAppendingString:@"thumb"] : [NSNull null]
         @"localIdentifier": (localIdentifier) ? localIdentifier : [NSNull null],
         @"filename": (filename) ? filename : [NSNull null],
         @"width": width,
@@ -621,6 +627,20 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                             return;
                                         }
                                     }
+                                    NSString *thumbPath = @"";
+                                    if([[self.options objectForKey:@"writeTempFile"] boolValue]) {
+                                        
+                                        thumbPath = [self persistFile:imageResult.data];
+                                        
+                                        if (thumbPath == nil) {
+                                            [indicatorView stopAnimating];
+                                            [overlayView removeFromSuperview];
+                                            [imagePickerController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
+                                                self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+                                            }]];
+                                            return;
+                                        }
+                                    }
                                     
                                     NSDictionary* exif = nil;
                                     if([[self.options objectForKey:@"includeExif"] boolValue]) {
@@ -628,8 +648,10 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                     }
                                     
                                     [selections addObject:[self createAttachmentResponse:filePath
-                                                                                withExif: exif
-                                                                           withSourceURL:[sourceURL absoluteString]
+                                                            withExif: exif
+                                                            withSourceURL:[sourceURL absoluteString]
+                                                                            withThumbURL:
+                                                               [thumbURL absoluteString]
                                                                      withLocalIdentifier: phAsset.localIdentifier
                                                                             withFilename: [phAsset valueForKey:@"filename"]
                                                                                withWidth:imageResult.width
@@ -701,6 +723,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                 withExif: exif
                                       withViewController:imagePickerController
                                            withSourceURL:[sourceURL absoluteString]
+                                            withThumbURL:[thumbURL absoluteString]
                                      withLocalIdentifier:phAsset.localIdentifier
                                             withFilename:[phAsset valueForKey:@"filename"]
                                         withCreationDate:phAsset.creationDate
@@ -722,7 +745,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
 // when user selected single image, with camera or from photo gallery,
 // this method will take care of attaching image metadata, and sending image to cropping controller
 // or to user directly
-- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate {
+- (void) processSingleImagePick:(UIImage*)image withExif:(NSDictionary*) exif withViewController:(UIViewController*)viewController withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withThumbURL:(NSString*)thumbURL {
     
     if (image == nil) {
         [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
@@ -736,6 +759,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     if ([[[self options] objectForKey:@"cropping"] boolValue]) {
         self.croppingFile = [[NSMutableDictionary alloc] init];
         self.croppingFile[@"sourceURL"] = sourceURL;
+        self.croppingFile[@"thumbURL"] = thumbURL;
         self.croppingFile[@"localIdentifier"] = localIdentifier;
         self.croppingFile[@"filename"] = filename;
         self.croppingFile[@"creationDate"] = creationDate;
@@ -746,13 +770,19 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     } else {
         ImageResult *imageResult = [self.compression compressImage:[image fixOrientation]  withOptions:self.options];
         NSString *filePath = [self persistFile:imageResult.data];
+        NSString *thumbPath = [self persistFile:imageResult.data];
         if (filePath == nil) {
             [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
                 self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
             }]];
             return;
         }
-        
+        if (thumbPath == nil) {
+            [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
+                self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+            }]];
+            return;
+        }
         // Wait for viewController to dismiss before resolving, or we lose the ability to display
         // Alert.alert in the .then() handler.
         [viewController dismissViewControllerAnimated:YES completion:[self waitAnimationEnd:^{
@@ -760,6 +790,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                withExif:exif
                                           withSourceURL:sourceURL
                                     withLocalIdentifier:localIdentifier
+                                           withThumbURL:thumbURL
                                            withFilename:filename
                                               withWidth:imageResult.width
                                              withHeight:imageResult.height
@@ -809,7 +840,15 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     ImageResult *imageResult = [self.compression compressImage:resizedImage withOptions:self.options];
     
     NSString *filePath = [self persistFile:imageResult.data];
+    NSString *thumbPath = [self persistFile:imageResult.data];
     if (filePath == nil) {
+        [self dismissCropper:controller selectionDone:YES completion:[self waitAnimationEnd:^{
+            self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
+        }]];
+        return;
+    }
+    
+    if (thumbPath == nil) {
         [self dismissCropper:controller selectionDone:YES completion:[self waitAnimationEnd:^{
             self.reject(ERROR_CANNOT_SAVE_IMAGE_KEY, ERROR_CANNOT_SAVE_IMAGE_MSG, nil);
         }]];
@@ -826,6 +865,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                            withExif: exif
                                       withSourceURL: self.croppingFile[@"sourceURL"]
                                 withLocalIdentifier: self.croppingFile[@"localIdentifier"]
+                                       withThumbURL:self.croppingFile[@"thumbURL"]
                                        withFilename: self.croppingFile[@"filename"]
                                           withWidth:imageResult.width
                                          withHeight:imageResult.height
@@ -846,15 +886,19 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     // create temp file
     NSString *tmpDirFullPath = [self getTmpDirectory];
     NSString *filePath = [tmpDirFullPath stringByAppendingString:[[NSUUID UUID] UUIDString]];
+    NSString *thumbPath = [tmpDirFullPath stringByAppendingString:[[NSUUID UUID] UUIDString]]
     filePath = [filePath stringByAppendingString:@".jpg"];
+    thumbPath = [thumbPath stringByAppendingString:@"thumb.jpg"]
     
     // save cropped file
     BOOL status = [data writeToFile:filePath atomically:YES];
-    if (!status) {
+    BOOL thumbStatus = [data writeToFile:thumbPath atomically:YES]
+    if (!status || !thumbStatus) {
         return nil;
     }
     
-    return filePath;
+
+    return filePath && thumbPath;
 }
 
 + (NSDictionary *)cgRectToDictionary:(CGRect)rect {
