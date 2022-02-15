@@ -12,15 +12,15 @@
 
 - (instancetype)init {
     NSMutableDictionary *dic = [[NSMutableDictionary alloc] initWithDictionary:@{
-                                                                                 @"640x480": AVAssetExportPreset640x480,
-                                                                                 @"960x540": AVAssetExportPreset960x540,
-                                                                                 @"1280x720": AVAssetExportPreset1280x720,
-                                                                                 @"1920x1080": AVAssetExportPreset1920x1080,
-                                                                                 @"LowQuality": AVAssetExportPresetLowQuality,
-                                                                                 @"MediumQuality": AVAssetExportPresetMediumQuality,
-                                                                                 @"HighestQuality": AVAssetExportPresetHighestQuality,
-                                                                                 @"Passthrough": AVAssetExportPresetPassthrough,
-                                                                                 }];
+        @"640x480": AVAssetExportPreset640x480,
+        @"960x540": AVAssetExportPreset960x540,
+        @"1280x720": AVAssetExportPreset1280x720,
+        @"1920x1080": AVAssetExportPreset1920x1080,
+        @"LowQuality": AVAssetExportPresetLowQuality,
+        @"MediumQuality": AVAssetExportPresetMediumQuality,
+        @"HighestQuality": AVAssetExportPresetHighestQuality,
+        @"Passthrough": AVAssetExportPresetPassthrough,
+    }];
     
     if (@available(iOS 9.0, *)) {
         [dic addEntriesFromDictionary:@{@"3840x2160": AVAssetExportPreset3840x2160}];
@@ -38,24 +38,11 @@
                   compressImageMaxHeight:(CGFloat)maxHeight
                               intoResult:(ImageResult*)result {
     
-+ (UIImage *)thumbnailWithContentsOfURL:(NSURL *)URL maxPixelSize:(CGFloat)maxPixelSize
-
-        CGImageSourceRef imageSource = CGImageSourceCreateWithURL((__bridge CFURLRef)URL, NULL);
-        NSAssert(imageSource != NULL, @"cannot create image source");
-
-        NSDictionary *imageOptions = @{
-            (NSString const *)kCGImageSourceCreateThumbnailFromImageIfAbsent : (NSNumber const *)kCFBooleanTrue,
-            (NSString const *)kCGImageSourceThumbnailMaxPixelSize            : @(maxPixelSize),
-            (NSString const *)kCGImageSourceCreateThumbnailWithTransform     : (NSNumber const *)kCFBooleanTrue
-        };
-        CGImageRef thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, (__bridge CFDictionaryRef)imageOptions);
-        CFRelease(imageSource);
-
-        UIImage *result = [[UIImage alloc] initWithCGImage:thumbnail];
-        CGImageRelease(thumbnail);
     
     CGFloat oldWidth = image.size.width;
     CGFloat oldHeight = image.size.height;
+    CGFloat thumbHeight = 100;
+    CGFloat thumbWidth = 100;
     
     int newWidth = 0;
     int newHeight = 0;
@@ -68,6 +55,12 @@
         newWidth = (oldWidth / oldHeight) * newHeight;
     }
     CGSize newSize = CGSizeMake(newWidth, newHeight);
+    CGSize thumbSize = CGSizeMake(thumbWidth, thumbHeight);
+    
+    UIGraphicsBeginImageContext(thumbSize);
+    [image drawInRect:CGRectMake(0, 0, thumbSize.width, thumbSize.height)];
+    UIImage *thumbnail = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
     
     UIGraphicsBeginImageContext(newSize);
     [image drawInRect:CGRectMake(0, 0, newSize.width, newSize.height)];
@@ -77,7 +70,7 @@
     result.width = [NSNumber numberWithFloat:newWidth];
     result.height = [NSNumber numberWithFloat:newHeight];
     result.image = resizedImage;
-    result.thumbnail = thumbnail
+    result.thumbnail = thumbnail;
     return result;
 }
 
