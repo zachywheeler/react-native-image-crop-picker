@@ -17,6 +17,7 @@
 @property NSNumber *height;
 @property NSString *mime;
 @property UIImage *image;
+@property UIImage *thumbnail;
 
 @end
 

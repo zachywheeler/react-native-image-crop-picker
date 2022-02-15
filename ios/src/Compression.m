@@ -38,6 +38,22 @@
                   compressImageMaxHeight:(CGFloat)maxHeight
                               intoResult:(ImageResult*)result {
     
++ (UIImage *)thumbnailWithContentsOfURL:(NSURL *)URL maxPixelSize:(CGFloat)maxPixelSize
+
+        CGImageSourceRef imageSource = CGImageSourceCreateWithURL((__bridge CFURLRef)URL, NULL);
+        NSAssert(imageSource != NULL, @"cannot create image source");
+
+        NSDictionary *imageOptions = @{
+            (NSString const *)kCGImageSourceCreateThumbnailFromImageIfAbsent : (NSNumber const *)kCFBooleanTrue,
+            (NSString const *)kCGImageSourceThumbnailMaxPixelSize            : @(maxPixelSize),
+            (NSString const *)kCGImageSourceCreateThumbnailWithTransform     : (NSNumber const *)kCFBooleanTrue
+        };
+        CGImageRef thumbnail = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, (__bridge CFDictionaryRef)imageOptions);
+        CFRelease(imageSource);
+
+        UIImage *result = [[UIImage alloc] initWithCGImage:thumbnail];
+        CGImageRelease(thumbnail);
+    
     CGFloat oldWidth = image.size.width;
     CGFloat oldHeight = image.size.height;
     
@@ -61,6 +77,7 @@
     result.width = [NSNumber numberWithFloat:newWidth];
     result.height = [NSNumber numberWithFloat:newHeight];
     result.image = resizedImage;
+    result.thumbnail = thumbnail
     return result;
 }
 
