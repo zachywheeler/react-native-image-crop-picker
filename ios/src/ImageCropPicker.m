@@ -485,7 +485,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     }];
 }
 
-- (NSDictionary*) createAttachmentResponse:(NSString*)filePath createAttachmentResponse:(NSString*)thumbPath createAttachmentResponse:(NSString*)thumbPath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withDuration:(NSNumber*)duration withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withThumbURL:(NSString*)thumbURL {
+- (NSDictionary*) createAttachmentResponse:(NSString*)filePath  createAttachmentResponse:(NSString*)thumbPath withExif:(NSDictionary*) exif withSourceURL:(NSString*)sourceURL withLocalIdentifier:(NSString*)localIdentifier withFilename:(NSString*)filename withWidth:(NSNumber*)width withHeight:(NSNumber*)height withMime:(NSString*)mime withSize:(NSNumber*)size withDuration:(NSNumber*)duration withData:(NSString*)data withRect:(CGRect)cropRect withCreationDate:(NSDate*)creationDate withModificationDate:(NSDate*)modificationDate withThumbURL:(NSString*)thumbURL {
     return @{
         @"path": (filePath && ![filePath isEqualToString:(@"")]) ? filePath : [NSNull null],
         @"thumbPath": (thumbPath && ![thumbPath isEqualToString:(@"")]) ? thumbPath : [NSNull null],
@@ -723,7 +723,6 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                                 withExif: exif
                                       withViewController:imagePickerController
                                            withSourceURL:[sourceURL absoluteString]
-                                            withThumbURL:[thumbURL absoluteString]
                                      withLocalIdentifier:phAsset.localIdentifier
                                             withFilename:[phAsset valueForKey:@"filename"]
                                         withCreationDate:phAsset.creationDate
@@ -865,7 +864,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
                                            withExif: exif
                                       withSourceURL: self.croppingFile[@"sourceURL"]
                                 withLocalIdentifier: self.croppingFile[@"localIdentifier"]
-                                       withThumbURL:self.croppingFile[@"thumbURL"]
+                                       withThumbURL: self.croppingFile[@"thumbURL"]
                                        withFilename: self.croppingFile[@"filename"]
                                           withWidth:imageResult.width
                                          withHeight:imageResult.height
@@ -892,7 +891,7 @@ RCT_EXPORT_METHOD(openCropper:(NSDictionary *)options
     
     // save cropped file
     BOOL status = [data writeToFile:filePath atomically:YES];
-    BOOL thumbStatus = [data writeToFile:thumbPath atomically:YES]
+    BOOL thumbStatus = [data writeToFile:thumbPath atomically:YES];
     if (!status || !thumbStatus) {
         return nil;
     }
